@@ -26,11 +26,13 @@ import com.ebp04.backend.entity.TaskPriority;
 import com.ebp04.backend.entity.TaskStatus;
 import com.ebp04.backend.entity.User;
 import com.ebp04.backend.exception.BusinessException;
+import com.ebp04.backend.facade.TaskNotificationFacade;
 import com.ebp04.backend.repository.HouseholdMemberRepository;
 import com.ebp04.backend.repository.HouseholdRepository;
 import com.ebp04.backend.repository.HouseholdTaskRepository;
-import com.ebp04.backend.repository.TaskNotificationRepository;
 import com.ebp04.backend.repository.UserRepository;
+import com.ebp04.backend.strategy.NonAdminTaskUpdatePermissionStrategy;
+import com.ebp04.backend.strategy.TaskUpdatePermissionStrategyResolver;
 
 @ExtendWith(MockitoExtension.class)
 class HouseholdTaskServiceImplTest {
@@ -53,7 +55,10 @@ class HouseholdTaskServiceImplTest {
     private HouseholdTaskRepository householdTaskRepository;
 
     @Mock
-    private TaskNotificationRepository taskNotificationRepository;
+    private TaskNotificationFacade taskNotificationFacade;
+
+    @Mock
+    private TaskUpdatePermissionStrategyResolver taskUpdatePermissionStrategyResolver;
 
     @InjectMocks
     private HouseholdTaskServiceImpl householdTaskService;
@@ -96,7 +101,7 @@ class HouseholdTaskServiceImplTest {
 
         assertEquals("No tienes acceso a este hogar.", exception.getMessage());
         verify(householdTaskRepository, never()).save(assignedTask);
-        verify(taskNotificationRepository, never()).save(org.mockito.ArgumentMatchers.any());
+        verify(taskNotificationFacade, never()).notifyTaskAccepted(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -133,6 +138,8 @@ class HouseholdTaskServiceImplTest {
                 .thenReturn(Optional.of(assignedTask));
         when(householdMemberRepository.findByHouseholdIdAndUserId(HOUSEHOLD_ID, USER_ID))
                 .thenReturn(Optional.of(member));
+        when(taskUpdatePermissionStrategyResolver.resolve(HouseholdRole.MIEMBRO))
+                .thenReturn(new NonAdminTaskUpdatePermissionStrategy());
 
         BusinessException exception = assertThrows(
                 BusinessException.class,

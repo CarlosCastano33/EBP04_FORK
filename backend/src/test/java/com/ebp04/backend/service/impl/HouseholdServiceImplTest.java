@@ -22,6 +22,7 @@ import com.ebp04.backend.entity.HouseholdRole;
 import com.ebp04.backend.entity.HouseholdTask;
 import com.ebp04.backend.entity.TaskStatus;
 import com.ebp04.backend.entity.User;
+import com.ebp04.backend.dto.request.UpdateHouseholdMemberRoleRequest;
 import com.ebp04.backend.repository.HouseholdMemberRepository;
 import com.ebp04.backend.repository.HouseholdRepository;
 import com.ebp04.backend.repository.HouseholdTaskRepository;
@@ -119,5 +120,41 @@ class HouseholdServiceImplTest {
         assertNull(assignedTask.getMotivoRechazo());
         verify(householdTaskRepository).saveAll(List.of(assignedTask));
         verify(householdMemberRepository).delete(memberToRemove);
+    }
+
+    @Test
+    void updateMemberRoleToGuestUnassignsTheirHouseholdTasks() {
+        HouseholdTask assignedTask = HouseholdTask.builder()
+                .id(11L)
+                .nombre("Sacar basura")
+                .household(household)
+                .creadoPor(adminUser)
+                .asignadoA(memberUser)
+                .estado(TaskStatus.ASIGNADA)
+                .fechaAceptacion(LocalDateTime.now())
+                .motivoRechazo("Motivo previo")
+                .build();
+        UpdateHouseholdMemberRoleRequest request = UpdateHouseholdMemberRoleRequest.builder()
+                .role(HouseholdRole.INVITADO)
+                .build();
+
+        when(householdRepository.findById(HOUSEHOLD_ID)).thenReturn(Optional.of(household));
+        when(userRepository.findByCorreo(ADMIN_EMAIL)).thenReturn(Optional.of(adminUser));
+        when(householdMemberRepository.findByHouseholdIdAndUserId(HOUSEHOLD_ID, ADMIN_ID))
+                .thenReturn(Optional.of(adminMember));
+        when(householdMemberRepository.findByHouseholdIdAndUserId(HOUSEHOLD_ID, MEMBER_ID))
+                .thenReturn(Optional.of(memberToRemove));
+        when(householdTaskRepository.findByHouseholdIdAndAsignadoAId(HOUSEHOLD_ID, MEMBER_ID))
+                .thenReturn(List.of(assignedTask));
+        when(householdMemberRepository.save(memberToRemove)).thenReturn(memberToRemove);
+
+        householdService.updateMemberRole(HOUSEHOLD_ID, MEMBER_ID, request, ADMIN_EMAIL);
+
+        assertEquals(HouseholdRole.INVITADO, memberToRemove.getRole());
+        assertNull(assignedTask.getAsignadoA());
+        assertEquals(TaskStatus.SIN_ASIGNAR, assignedTask.getEstado());
+        assertNull(assignedTask.getFechaAceptacion());
+        assertNull(assignedTask.getMotivoRechazo());
+        verify(householdTaskRepository).saveAll(List.of(assignedTask));
     }
 }

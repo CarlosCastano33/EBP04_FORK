@@ -19,18 +19,19 @@ import com.ebp04.backend.entity.Household;
 import com.ebp04.backend.entity.HouseholdMember;
 import com.ebp04.backend.entity.HouseholdRole;
 import com.ebp04.backend.entity.HouseholdTask;
-import com.ebp04.backend.entity.TaskNotification;
-import com.ebp04.backend.entity.TaskNotificationType;
 import com.ebp04.backend.entity.TaskStatus;
 import com.ebp04.backend.entity.User;
 import com.ebp04.backend.exception.BusinessException;
 import com.ebp04.backend.exception.ResourceNotFoundException;
+import com.ebp04.backend.facade.TaskNotificationFacade;
+import com.ebp04.backend.factory.HouseholdTaskFactory;
 import com.ebp04.backend.repository.HouseholdMemberRepository;
 import com.ebp04.backend.repository.HouseholdRepository;
 import com.ebp04.backend.repository.HouseholdTaskRepository;
-import com.ebp04.backend.repository.TaskNotificationRepository;
 import com.ebp04.backend.repository.UserRepository;
 import com.ebp04.backend.service.HouseholdTaskService;
+import com.ebp04.backend.strategy.TaskUpdatePermissionStrategy;
+import com.ebp04.backend.strategy.TaskUpdatePermissionStrategyResolver;
 
 import lombok.RequiredArgsConstructor;
 
@@ -42,7 +43,9 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
     private final HouseholdRepository householdRepository;
     private final HouseholdMemberRepository householdMemberRepository;
     private final HouseholdTaskRepository householdTaskRepository;
-    private final TaskNotificationRepository taskNotificationRepository;
+    private final HouseholdTaskFactory householdTaskFactory;
+    private final TaskNotificationFacade taskNotificationFacade;
+    private final TaskUpdatePermissionStrategyResolver taskUpdatePermissionStrategyResolver;
 
     @Override
     @Transactional
@@ -58,16 +61,7 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
             assignedUser = validateAssignableUser(householdId, request.getAsignadoAId());
         }
 
-        HouseholdTask task = HouseholdTask.builder()
-                .nombre(request.getNombre())
-                .descripcion(request.getDescripcion())
-                .prioridad(request.getPrioridad())
-                .fechaLimite(request.getFechaLimite())
-                .household(household)
-                .creadoPor(authenticatedUser)
-                .asignadoA(assignedUser)
-                .estado(assignedUser != null ? TaskStatus.ASIGNADA : TaskStatus.SIN_ASIGNAR)
-                .build();
+        HouseholdTask task = householdTaskFactory.createTask(request, household, authenticatedUser, assignedUser);
 
         HouseholdTask savedTask = householdTaskRepository.save(task);
 
@@ -89,7 +83,7 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
         HouseholdTask task = householdTaskRepository.findByIdAndHouseholdId(taskId, householdId)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro la tarea solicitada."));
 
-        taskNotificationRepository.deleteByTaskId(taskId);
+        taskNotificationFacade.deleteNotificationsForTask(taskId);
         householdTaskRepository.delete(task);
 
         return ApiResponse.builder()
@@ -140,9 +134,13 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
         HouseholdTask task = householdTaskRepository.findByIdAndHouseholdId(taskId, householdId)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro la tarea solicitada."));
 
-        HouseholdMember authenticatedMember = validateTaskEditAccess(householdId, authenticatedUser, task);
+        HouseholdMember authenticatedMember = getAuthenticatedHouseholdMember(householdId, authenticatedUser.getId());
+        TaskUpdatePermissionStrategy taskUpdatePermissionStrategy =
+                taskUpdatePermissionStrategyResolver.resolve(authenticatedMember.getRole());
+
+        taskUpdatePermissionStrategy.validateTaskEditAccess(authenticatedMember, authenticatedUser, task);
         validateTaskUpdateRequest(request);
-        validateGeneralTaskUpdateFields(authenticatedMember, request);
+        taskUpdatePermissionStrategy.validateAllowedFields(request);
 
         if (request.getNombre() != null) {
             task.setNombre(request.getNombre());
@@ -213,15 +211,7 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
 
         HouseholdTask savedTask = householdTaskRepository.save(task);
 
-        TaskNotification notification = TaskNotification.builder()
-                .user(savedTask.getCreadoPor())
-                .task(savedTask)
-                .message("La tarea fue aceptada: " + savedTask.getNombre())
-                .read(Boolean.FALSE)
-                .type(TaskNotificationType.TASK_ACCEPTED)
-                .build();
-
-        taskNotificationRepository.save(notification);
+        taskNotificationFacade.notifyTaskAccepted(savedTask);
 
         return buildTaskResponse(savedTask);
     }
@@ -313,24 +303,14 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
         }
     }
 
-    private HouseholdMember validateTaskEditAccess(Long householdId, User authenticatedUser, HouseholdTask task) {
-        HouseholdMember member = householdMemberRepository.findByHouseholdIdAndUserId(householdId, authenticatedUser.getId())
-                .orElseThrow(() -> new BusinessException("No tienes acceso a este hogar."));
-
-        if (member.getRole() == HouseholdRole.ADMIN) {
-            return member;
-        }
-
-        if (task.getAsignadoA() != null && task.getAsignadoA().getId().equals(authenticatedUser.getId())) {
-            return member;
-        }
-
-        throw new BusinessException("No tienes permisos para editar esta tarea.");
-    }
-
     private HouseholdMember getHouseholdMember(Long householdId, Long userId) {
         return householdMemberRepository.findByHouseholdIdAndUserId(householdId, userId)
                 .orElseThrow(() -> new BusinessException("El usuario no es miembro del hogar."));
+    }
+
+    private HouseholdMember getAuthenticatedHouseholdMember(Long householdId, Long userId) {
+        return householdMemberRepository.findByHouseholdIdAndUserId(householdId, userId)
+                .orElseThrow(() -> new BusinessException("No tienes acceso a este hogar."));
     }
 
     private void validateHouseholdAccess(Long householdId, Long userId) {
@@ -372,14 +352,6 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
         }
     }
 
-    private void validateGeneralTaskUpdateFields(HouseholdMember authenticatedMember, UpdateHouseholdTaskRequest request) {
-        boolean changesPriorityOrDeadline = request.getPrioridad() != null || request.getFechaLimite() != null;
-
-        if (changesPriorityOrDeadline && authenticatedMember.getRole() != HouseholdRole.ADMIN) {
-            throw new BusinessException("Solo un ADMIN del hogar puede modificar la prioridad o la fecha limite.");
-        }
-    }
-
     private User validateAssignableUser(Long householdId, Long userId) {
         User userToAssign = userRepository.findById(userId)
                 .orElseThrow(() -> new ResourceNotFoundException("No se encontro el usuario a asignar."));
@@ -393,15 +365,7 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
     }
 
     private void createTaskAssignedNotification(HouseholdTask task, User assignedUser) {
-        TaskNotification notification = TaskNotification.builder()
-                .user(assignedUser)
-                .task(task)
-                .message("Se te ha asignado la tarea: " + task.getNombre())
-                .read(Boolean.FALSE)
-                .type(TaskNotificationType.TASK_ASSIGNED)
-                .build();
-
-        taskNotificationRepository.save(notification);
+        taskNotificationFacade.notifyTaskAssigned(task, assignedUser);
     }
 
     private HouseholdTaskResponse buildTaskResponse(HouseholdTask task) {
@@ -423,3 +387,5 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
                 .build();
     }
 }
+
+

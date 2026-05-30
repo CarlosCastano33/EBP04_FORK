@@ -143,6 +143,10 @@ public class HouseholdServiceImpl implements HouseholdService {
         }
 
         memberToUpdate.setRole(newRole);
+        if (newRole == HouseholdRole.INVITADO) {
+            unassignTasksForRemovedMember(householdId, userId);
+        }
+
         HouseholdMember savedMember = householdMemberRepository.save(memberToUpdate);
 
         return buildMemberResponse(savedMember);

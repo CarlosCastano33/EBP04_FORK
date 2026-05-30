@@ -300,10 +300,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentUser?.homeId || !currentUser.isAdmin || !role) return;
 
     const updatedMember = await updateHouseholdMemberRoleRequest(currentUser.homeId, userId, role);
+    const homeTasks = await getHouseholdTasksRequest(currentUser.homeId);
 
     setMembers((currentMembers) =>
       currentMembers.map((member) => (member.id === userId ? updatedMember : member)),
     );
+    setTasks(homeTasks);
 
     if (userId === currentUser.id) {
       const updatedUser = {
