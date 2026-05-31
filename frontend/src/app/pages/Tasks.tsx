@@ -10,11 +10,15 @@ import { AssignTaskModal } from '../components/AssignTaskModal';
 import { AcceptTaskModal } from '../components/AcceptTaskModal';
 import { RejectTaskModal } from '../components/RejectTaskModal';
 import { ReassignTaskModal } from '../components/ReassignTaskModal';
-import { ArrowLeft, CheckCircle, ClipboardList, Shield, Trash2, Edit, Calendar, UserPlus, User, Check, X, RefreshCw } from 'lucide-react';
+import { VerifyTaskModal } from '../components/VerifyTaskModal';
+import { RejectTaskVerificationModal } from '../components/RejectTaskVerificationModal';
+import { StartTaskModal } from '../components/StartTaskModal';
+import { CompleteTaskModal } from '../components/CompleteTaskModal';
+import { ArrowLeft, CheckCircle, ClipboardList, Shield, Trash2, Edit, Calendar, UserPlus, User, Check, X, RefreshCw, XCircle, Play } from 'lucide-react';
 import { Task, TaskPriority } from '../types';
 
 export function Tasks() {
-  const { currentUser, createTask, getHomeTasks, deleteTask, updateTask, assignTask, acceptTask, rejectTask, reassignTask, getHomeMembers } = useAuth();
+  const { currentUser, createTask, getHomeTasks, deleteTask, updateTask, assignTask, acceptTask, rejectTask, reassignTask, startTask, completeTask, verifyTask, rejectTaskVerification, getHomeMembers } = useAuth();
   const navigate = useNavigate();
 
   const [taskName, setTaskName] = useState('');
@@ -43,13 +47,24 @@ export function Tasks() {
   const [taskToAccept, setTaskToAccept] = useState<Task | null>(null);
   const [taskToReject, setTaskToReject] = useState<Task | null>(null);
   const [taskToReassign, setTaskToReassign] = useState<Task | null>(null);
+  const [taskToVerify, setTaskToVerify] = useState<Task | null>(null);
+  const [taskToRejectVerification, setTaskToRejectVerification] = useState<Task | null>(null);
+  const [taskToStart, setTaskToStart] = useState<Task | null>(null);
+  const [taskToComplete, setTaskToComplete] = useState<Task | null>(null);
+  const [startSuccess, setStartSuccess] = useState(false);
+  const [startError, setStartError] = useState<string>('');
+  const [completeSuccess, setCompleteSuccess] = useState(false);
+  const [completeError, setCompleteError] = useState<string>('');
+  const [verifySuccess, setVerifySuccess] = useState(false);
+  const [verifySuccessType, setVerifySuccessType] = useState<'verify' | 'reject'>('verify');
+  const [verifyError, setVerifyError] = useState<string>('');
   const [priorityFilter, setPriorityFilter] = useState<string>('Todas');
-  const [tabFilter, setTabFilter] = useState<'Todas' | 'Pendientes por asignar'>('Todas');
+  const [tabFilter, setTabFilter] = useState<'Todas' | 'Pendientes por asignar' | 'Pendientes de verificacion'>('Todas');
   const [showPriorityDropdown, setShowPriorityDropdown] = useState(false);
   const [refreshTasks, setRefreshTasks] = useState(0);
 
   // Forzar actualización de tareas cuando cambia refreshTasks
-  const allTasks = getHomeTasks();
+  const allTasks = getHomeTasks().filter(task => task.status !== 'verified');
 
   // Check user role and permissions
   const isAdmin = currentUser?.isAdmin;
@@ -71,6 +86,8 @@ export function Tasks() {
           const status = task.status || (task.assignedTo ? 'pending' : 'unassigned');
           return status === 'unassigned' || status === 'rejected';
         })
+      : tabFilter === 'Pendientes de verificacion'
+      ? displayTasks.filter(task => task.status === 'completed')
       : displayTasks
     : displayTasks;
 
@@ -80,6 +97,10 @@ export function Tasks() {
         const status = task.status || (task.assignedTo ? 'pending' : 'unassigned');
         return status === 'unassigned' || status === 'rejected';
       }).length
+    : 0;
+
+  const pendingVerificationCount = isAdmin
+    ? displayTasks.filter(task => task.status === 'completed').length
     : 0;
 
   // Filtrar por prioridad
@@ -361,6 +382,74 @@ export function Tasks() {
     setRejectError('');
   };
 
+  const handleStartTask = (task: Task) => {
+    setTaskToStart(task);
+    setStartError('');
+  };
+
+  const handleConfirmStart = async () => {
+    if (taskToStart) {
+      try {
+        await startTask(taskToStart.id);
+        setTaskToStart(null);
+        setStartSuccess(true);
+        setStartError('');
+
+        setRefreshTasks(prev => prev + 1);
+
+        setTimeout(() => {
+          setStartSuccess(false);
+        }, 3000);
+      } catch (error: any) {
+        setStartError(error.message);
+        setTaskToStart(null);
+
+        setTimeout(() => {
+          setStartError('');
+        }, 5000);
+      }
+    }
+  };
+
+  const handleCancelStart = () => {
+    setTaskToStart(null);
+    setStartError('');
+  };
+
+  const handleCompleteTask = (task: Task) => {
+    setTaskToComplete(task);
+    setCompleteError('');
+  };
+
+  const handleConfirmComplete = async () => {
+    if (taskToComplete) {
+      try {
+        await completeTask(taskToComplete.id);
+        setTaskToComplete(null);
+        setCompleteSuccess(true);
+        setCompleteError('');
+
+        setRefreshTasks(prev => prev + 1);
+
+        setTimeout(() => {
+          setCompleteSuccess(false);
+        }, 3000);
+      } catch (error: any) {
+        setCompleteError(error.message);
+        setTaskToComplete(null);
+
+        setTimeout(() => {
+          setCompleteError('');
+        }, 5000);
+      }
+    }
+  };
+
+  const handleCancelComplete = () => {
+    setTaskToComplete(null);
+    setCompleteError('');
+  };
+
   const handleReassignTask = (task: Task) => {
     setTaskToReassign(task);
     setReassignError('');
@@ -395,6 +484,76 @@ export function Tasks() {
     setTaskToReassign(null);
     setReassignError('');
     setReassignModalError('');
+  };
+
+  const handleVerifyTask = (task: Task) => {
+    setTaskToVerify(task);
+    setVerifyError('');
+  };
+
+  const handleConfirmVerify = async () => {
+    if (taskToVerify) {
+      try {
+        await verifyTask(taskToVerify.id);
+        setTaskToVerify(null);
+        setVerifySuccess(true);
+        setVerifySuccessType('verify');
+        setVerifyError('');
+
+        setRefreshTasks(prev => prev + 1);
+
+        setTimeout(() => {
+          setVerifySuccess(false);
+        }, 3000);
+      } catch (error: any) {
+        setVerifyError(error.message);
+        setTaskToVerify(null);
+
+        setTimeout(() => {
+          setVerifyError('');
+        }, 5000);
+      }
+    }
+  };
+
+  const handleCancelVerify = () => {
+    setTaskToVerify(null);
+    setVerifyError('');
+  };
+
+  const handleRejectVerification = (task: Task) => {
+    setTaskToRejectVerification(task);
+    setVerifyError('');
+  };
+
+  const handleConfirmRejectVerification = async (reason: string) => {
+    if (taskToRejectVerification) {
+      try {
+        await rejectTaskVerification(taskToRejectVerification.id, reason);
+        setTaskToRejectVerification(null);
+        setVerifySuccess(true);
+        setVerifySuccessType('reject');
+        setVerifyError('');
+
+        setRefreshTasks(prev => prev + 1);
+
+        setTimeout(() => {
+          setVerifySuccess(false);
+        }, 3000);
+      } catch (error: any) {
+        setVerifyError(error.message);
+        setTaskToRejectVerification(null);
+
+        setTimeout(() => {
+          setVerifyError('');
+        }, 5000);
+      }
+    }
+  };
+
+  const handleCancelRejectVerification = () => {
+    setTaskToRejectVerification(null);
+    setVerifyError('');
   };
 
   const getCurrentResponsible = (task: Task) => {
@@ -459,6 +618,24 @@ export function Tasks() {
         return (
           <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-green-100 text-green-700 border border-green-300 font-medium">
             🟢 Aceptada
+          </span>
+        );
+      case 'in_progress':
+        return (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-blue-100 text-blue-700 border border-blue-300 font-medium">
+            En progreso
+          </span>
+        );
+      case 'completed':
+        return (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-purple-100 text-purple-700 border border-purple-300 font-medium">
+            Completada - Pendiente de verificacion
+          </span>
+        );
+      case 'verification_rejected':
+        return (
+          <span className="inline-flex items-center px-3 py-1 rounded-full text-xs bg-orange-100 text-orange-700 border border-orange-300 font-medium">
+            Verificacion rechazada
           </span>
         );
       case 'rejected':
@@ -656,7 +833,7 @@ export function Tasks() {
 
           {/* Lista de tareas */}
           <Card
-            title={isMember ? "Mis Tareas" : "Tareas del Hogar"}
+            title="Tareas del Hogar"
             maxWidth={isGuest ? "max-w-full" : canCreateTasks ? "max-w-full" : "max-w-3xl mx-auto"}
           >
             {deleteSuccess && (
@@ -728,6 +905,40 @@ export function Tasks() {
               </div>
             )}
 
+            {startSuccess && (
+              <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-blue-600" />
+                <span className="text-sm text-blue-600">
+                  Tarea iniciada correctamente.
+                </span>
+              </div>
+            )}
+
+            {startError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <span className="text-sm text-red-600">
+                  {startError}
+                </span>
+              </div>
+            )}
+
+            {completeSuccess && (
+              <div className="mb-4 p-3 bg-purple-50 border border-purple-200 rounded-lg flex items-center gap-2">
+                <CheckCircle className="w-5 h-5 text-purple-600" />
+                <span className="text-sm text-purple-600">
+                  Tarea marcada como completada. Queda pendiente de verificacion.
+                </span>
+              </div>
+            )}
+
+            {completeError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <span className="text-sm text-red-600">
+                  {completeError}
+                </span>
+              </div>
+            )}
+
             {reassignSuccess && (
               <div className="mb-4 p-3 bg-green-50 border border-green-200 rounded-lg flex items-center gap-2">
                 <CheckCircle className="w-5 h-5 text-green-600" />
@@ -741,6 +952,33 @@ export function Tasks() {
               <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
                 <span className="text-sm text-red-600">
                   ⚠️ {reassignError}
+                </span>
+              </div>
+            )}
+
+            {verifySuccess && (
+              <div className={`mb-4 p-3 border rounded-lg flex items-center gap-2 ${
+                verifySuccessType === 'verify'
+                  ? 'bg-teal-50 border-teal-200'
+                  : 'bg-orange-50 border-orange-200'
+              }`}>
+                <CheckCircle className={`w-5 h-5 ${
+                  verifySuccessType === 'verify' ? 'text-teal-600' : 'text-orange-600'
+                }`} />
+                <span className={`text-sm ${
+                  verifySuccessType === 'verify' ? 'text-teal-600' : 'text-orange-600'
+                }`}>
+                  {verifySuccessType === 'verify'
+                    ? 'Tarea verificada correctamente.'
+                    : 'Verificacion rechazada correctamente.'}
+                </span>
+              </div>
+            )}
+
+            {verifyError && (
+              <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg flex items-center gap-2">
+                <span className="text-sm text-red-600">
+                  {verifyError}
                 </span>
               </div>
             )}
@@ -777,6 +1015,24 @@ export function Tasks() {
                             : 'bg-red-500 text-white'
                         }`}>
                           {pendingToAssignCount}
+                        </span>
+                      )}
+                    </button>
+                    <button
+                      onClick={() => setTabFilter('Pendientes de verificacion')}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+                        tabFilter === 'Pendientes de verificacion'
+                          ? 'bg-blue-600 text-white shadow-md'
+                          : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                      }`}
+                    >
+                      Pendientes de verificacion {pendingVerificationCount > 0 && (
+                        <span className={`ml-1.5 px-2 py-0.5 rounded-full text-xs ${
+                          tabFilter === 'Pendientes de verificacion'
+                            ? 'bg-white/20 text-white'
+                            : 'bg-purple-500 text-white'
+                        }`}>
+                          {pendingVerificationCount}
                         </span>
                       )}
                     </button>
@@ -1017,6 +1273,46 @@ export function Tasks() {
                             </>
                           )}
 
+                          {task.assignedTo === currentUser?.id && (task.status === 'accepted' || task.status === 'verification_rejected') && (
+                            <button
+                              onClick={() => handleStartTask(task)}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Iniciar tarea"
+                            >
+                              <Play className="w-5 h-5" />
+                            </button>
+                          )}
+
+                          {task.assignedTo === currentUser?.id && task.status === 'in_progress' && (
+                            <button
+                              onClick={() => handleCompleteTask(task)}
+                              className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                              title="Completar tarea"
+                            >
+                              <CheckCircle className="w-5 h-5" />
+                            </button>
+                          )}
+
+                          {/* Botones de verificacion para administradores */}
+                          {canEditTasks && task.status === 'completed' && (
+                            <>
+                              <button
+                                onClick={() => handleVerifyTask(task)}
+                                className="p-2 text-green-600 hover:bg-green-50 rounded transition-colors"
+                                title="Confirmar cumplimiento"
+                              >
+                                <CheckCircle className="w-5 h-5" />
+                              </button>
+                              <button
+                                onClick={() => handleRejectVerification(task)}
+                                className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                                title="Rechazar cumplimiento"
+                              >
+                                <XCircle className="w-5 h-5" />
+                              </button>
+                            </>
+                          )}
+
                           {/* Botones para administradores */}
                           {canAssignTasks && (task.status === 'unassigned' || task.status === 'rejected' || !task.status) && (
                             <button
@@ -1027,7 +1323,7 @@ export function Tasks() {
                               <UserPlus className="w-5 h-5" />
                             </button>
                           )}
-                          {canAssignTasks && task.assignedTo && (
+                          {canAssignTasks && task.assignedTo && task.status !== 'completed' && task.status !== 'verified' && task.status !== 'verification_rejected' && (
                             <button
                               onClick={() => handleReassignTask(task)}
                               className="p-2 text-indigo-600 hover:bg-indigo-50 rounded transition-colors"
@@ -1036,7 +1332,7 @@ export function Tasks() {
                               <RefreshCw className="w-5 h-5" />
                             </button>
                           )}
-                          {canEditTasks && (
+                          {canEditTasks && task.status !== 'completed' && task.status !== 'verified' && (
                             <button
                               onClick={() => handleEditTask(task)}
                               className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
@@ -1045,7 +1341,7 @@ export function Tasks() {
                               <Edit className="w-5 h-5" />
                             </button>
                           )}
-                          {canEditTasks && (
+                          {canEditTasks && task.status !== 'completed' && task.status !== 'verified' && (
                             <button
                               onClick={() => setTaskToDelete(task.id)}
                               className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
@@ -1121,6 +1417,20 @@ export function Tasks() {
           onCancel={handleCancelReject}
         />
 
+        <StartTaskModal
+          isOpen={taskToStart !== null}
+          task={taskToStart}
+          onConfirm={handleConfirmStart}
+          onCancel={handleCancelStart}
+        />
+
+        <CompleteTaskModal
+          isOpen={taskToComplete !== null}
+          task={taskToComplete}
+          onConfirm={handleConfirmComplete}
+          onCancel={handleCancelComplete}
+        />
+
         {/* Modal de reasignar tarea */}
         <ReassignTaskModal
           isOpen={taskToReassign !== null}
@@ -1131,6 +1441,20 @@ export function Tasks() {
           onCancel={handleCancelReassign}
           externalError={reassignModalError}
           currentUserId={currentUser?.id}
+        />
+
+        <VerifyTaskModal
+          isOpen={taskToVerify !== null}
+          task={taskToVerify}
+          onConfirm={handleConfirmVerify}
+          onCancel={handleCancelVerify}
+        />
+
+        <RejectTaskVerificationModal
+          isOpen={taskToRejectVerification !== null}
+          task={taskToRejectVerification}
+          onConfirm={handleConfirmRejectVerification}
+          onCancel={handleCancelRejectVerification}
         />
       </div>
     </div>

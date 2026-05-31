@@ -14,8 +14,21 @@ export interface User {
 }
 
 export type TaskPriority = 'Alta' | 'Media' | 'Baja';
-export type TaskStatus = 'unassigned' | 'pending' | 'accepted' | 'rejected';
-export type NotificationType = 'TASK_ASSIGNED' | 'TASK_ACCEPTED';
+export type TaskStatus =
+  | 'unassigned'
+  | 'pending'
+  | 'accepted'
+  | 'rejected'
+  | 'in_progress'
+  | 'completed'
+  | 'verified'
+  | 'verification_rejected';
+export type NotificationType =
+  | 'TASK_ASSIGNED'
+  | 'TASK_ACCEPTED'
+  | 'TASK_COMPLETED'
+  | 'TASK_VERIFIED'
+  | 'TASK_VERIFICATION_REJECTED';
 
 export interface Task {
   id: string;
@@ -29,6 +42,11 @@ export interface Task {
   assignedTo?: string;
   status?: TaskStatus;
   rejectionReason?: string;
+  startedAt?: number;
+  completedAt?: number;
+  verifiedBy?: string;
+  verifiedAt?: number;
+  verificationRejectionReason?: string;
 }
 
 export interface Home {
@@ -73,6 +91,10 @@ export interface AuthContextType {
   acceptTask: (taskId: string) => Promise<void>;
   rejectTask: (taskId: string, reason: string) => Promise<void>;
   reassignTask: (taskId: string, newUserId: string | null) => Promise<void>;
+  startTask: (taskId: string) => Promise<void>;
+  completeTask: (taskId: string) => Promise<void>;
+  verifyTask: (taskId: string) => Promise<void>;
+  rejectTaskVerification: (taskId: string, reason: string) => Promise<void>;
   refreshHouseholdData: () => Promise<void>;
   refreshNotifications: () => Promise<void>;
   markNotificationAsRead: (notificationId: string) => Promise<void>;

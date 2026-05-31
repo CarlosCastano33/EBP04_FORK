@@ -11,6 +11,7 @@ import org.springframework.util.StringUtils;
 import com.ebp04.backend.dto.request.AssignHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.CreateHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.RejectHouseholdTaskRequest;
+import com.ebp04.backend.dto.request.RejectTaskVerificationRequest;
 import com.ebp04.backend.dto.request.UpdateHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.UpdateTaskPriorityDeadlineRequest;
 import com.ebp04.backend.dto.response.ApiResponse;
@@ -182,6 +183,7 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
         task.setEstado(TaskStatus.ASIGNADA);
         task.setFechaAceptacion(null);
         task.setMotivoRechazo(null);
+        clearTaskProgress(task);
         HouseholdTask savedTask = householdTaskRepository.save(task);
 
         createTaskAssignedNotification(savedTask, userToAssign);
@@ -203,6 +205,10 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
 
         if (task.getEstado() == TaskStatus.ACEPTADA) {
             throw new BusinessException("La tarea ya esta aceptada.");
+        }
+
+        if (task.getEstado() != TaskStatus.ASIGNADA) {
+            throw new BusinessException("Solo se pueden aceptar tareas asignadas.");
         }
 
         task.setEstado(TaskStatus.ACEPTADA);
@@ -241,9 +247,14 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
             throw new BusinessException("La tarea ya fue rechazada.");
         }
 
+        if (task.getEstado() != TaskStatus.ASIGNADA) {
+            throw new BusinessException("Solo se pueden rechazar tareas asignadas.");
+        }
+
         task.setEstado(TaskStatus.RECHAZADA);
         task.setFechaAceptacion(null);
         task.setMotivoRechazo(request.getReason());
+        clearTaskProgress(task);
 
         HouseholdTask savedTask = householdTaskRepository.save(task);
 
@@ -265,8 +276,131 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
         task.setEstado(TaskStatus.SIN_ASIGNAR);
         task.setFechaAceptacion(null);
         task.setMotivoRechazo(null);
+        clearTaskProgress(task);
 
         HouseholdTask savedTask = householdTaskRepository.save(task);
+
+        return buildTaskResponse(savedTask);
+    }
+
+    @Override
+    @Transactional
+    public HouseholdTaskResponse startTask(Long householdId, Long taskId, String correoAutenticado) {
+        getHouseholdById(householdId);
+        User authenticatedUser = getUserByCorreo(correoAutenticado);
+
+        HouseholdTask task = householdTaskRepository.findByIdAndHouseholdId(taskId, householdId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro la tarea solicitada."));
+
+        validateHouseholdAccess(householdId, authenticatedUser.getId());
+        validateAssignedUser(task, authenticatedUser);
+
+        if (task.getEstado() == TaskStatus.EN_PROGRESO) {
+            throw new BusinessException("La tarea ya esta iniciada.");
+        }
+
+        if (task.getEstado() != TaskStatus.ACEPTADA && task.getEstado() != TaskStatus.VERIFICACION_RECHAZADA) {
+            throw new BusinessException("Solo se pueden iniciar tareas aceptadas o con verificacion rechazada.");
+        }
+
+        task.setEstado(TaskStatus.EN_PROGRESO);
+        task.setFechaInicio(LocalDateTime.now());
+        task.setFechaFinalizacion(null);
+        task.setVerificadoPor(null);
+        task.setFechaVerificacion(null);
+        task.setMotivoRechazoVerificacion(null);
+
+        HouseholdTask savedTask = householdTaskRepository.save(task);
+
+        return buildTaskResponse(savedTask);
+    }
+
+    @Override
+    @Transactional
+    public HouseholdTaskResponse completeTask(Long householdId, Long taskId, String correoAutenticado) {
+        getHouseholdById(householdId);
+        User authenticatedUser = getUserByCorreo(correoAutenticado);
+
+        HouseholdTask task = householdTaskRepository.findByIdAndHouseholdId(taskId, householdId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro la tarea solicitada."));
+
+        validateHouseholdAccess(householdId, authenticatedUser.getId());
+        validateAssignedUser(task, authenticatedUser);
+
+        if (task.getEstado() == TaskStatus.COMPLETADA) {
+            throw new BusinessException("La tarea ya fue completada.");
+        }
+
+        if (task.getEstado() != TaskStatus.EN_PROGRESO) {
+            throw new BusinessException("Solo se pueden completar tareas en progreso.");
+        }
+
+        task.setEstado(TaskStatus.COMPLETADA);
+        task.setFechaFinalizacion(LocalDateTime.now());
+        task.setVerificadoPor(null);
+        task.setFechaVerificacion(null);
+        task.setMotivoRechazoVerificacion(null);
+
+        HouseholdTask savedTask = householdTaskRepository.save(task);
+
+        taskNotificationFacade.notifyTaskCompleted(savedTask);
+
+        return buildTaskResponse(savedTask);
+    }
+
+    @Override
+    @Transactional
+    public HouseholdTaskResponse verifyTask(Long householdId, Long taskId, String correoAutenticado) {
+        getHouseholdById(householdId);
+        User authenticatedUser = getUserByCorreo(correoAutenticado);
+
+        validateAdminAccess(householdId, authenticatedUser.getId());
+
+        HouseholdTask task = householdTaskRepository.findByIdAndHouseholdId(taskId, householdId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro la tarea solicitada."));
+
+        validateTaskReadyForVerification(task);
+        validateVerifierIsNotAssignedUser(task, authenticatedUser);
+
+        task.setEstado(TaskStatus.VERIFICADA);
+        task.setVerificadoPor(authenticatedUser);
+        task.setFechaVerificacion(LocalDateTime.now());
+        task.setMotivoRechazoVerificacion(null);
+
+        HouseholdTask savedTask = householdTaskRepository.save(task);
+
+        taskNotificationFacade.notifyTaskVerified(savedTask);
+
+        return buildTaskResponse(savedTask);
+    }
+
+    @Override
+    @Transactional
+    public HouseholdTaskResponse rejectTaskVerification(
+            Long householdId,
+            Long taskId,
+            RejectTaskVerificationRequest request,
+            String correoAutenticado) {
+
+        getHouseholdById(householdId);
+        User authenticatedUser = getUserByCorreo(correoAutenticado);
+
+        validateAdminAccess(householdId, authenticatedUser.getId());
+
+        HouseholdTask task = householdTaskRepository.findByIdAndHouseholdId(taskId, householdId)
+                .orElseThrow(() -> new ResourceNotFoundException("No se encontro la tarea solicitada."));
+
+        validateTaskReadyForVerification(task);
+        validateVerifierIsNotAssignedUser(task, authenticatedUser);
+
+        task.setEstado(TaskStatus.VERIFICACION_RECHAZADA);
+        task.setVerificadoPor(authenticatedUser);
+        task.setFechaVerificacion(LocalDateTime.now());
+        task.setMotivoRechazoVerificacion(request.getReason());
+
+        HouseholdTask savedTask = householdTaskRepository.save(task);
+
+        taskNotificationFacade.notifyTaskVerificationRejected(savedTask);
 
         return buildTaskResponse(savedTask);
     }
@@ -370,6 +504,7 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
 
     private HouseholdTaskResponse buildTaskResponse(HouseholdTask task) {
         Long asignadoAId = task.getAsignadoA() != null ? task.getAsignadoA().getId() : null;
+        Long verificadoPorId = task.getVerificadoPor() != null ? task.getVerificadoPor().getId() : null;
 
         return HouseholdTaskResponse.builder()
                 .id(task.getId())
@@ -380,11 +515,40 @@ public class HouseholdTaskServiceImpl implements HouseholdTaskService {
                 .estado(task.getEstado())
                 .fechaAceptacion(task.getFechaAceptacion())
                 .motivoRechazo(task.getMotivoRechazo())
+                .fechaInicio(task.getFechaInicio())
+                .fechaFinalizacion(task.getFechaFinalizacion())
+                .verificadoPorId(verificadoPorId)
+                .fechaVerificacion(task.getFechaVerificacion())
+                .motivoRechazoVerificacion(task.getMotivoRechazoVerificacion())
                 .householdId(task.getHousehold().getId())
                 .creadoPorId(task.getCreadoPor().getId())
                 .asignadoAId(asignadoAId)
                 .timestamp(LocalDateTime.now())
                 .build();
+    }
+
+    private void validateTaskReadyForVerification(HouseholdTask task) {
+        if (task.getEstado() == TaskStatus.VERIFICADA) {
+            throw new BusinessException("La tarea ya fue verificada.");
+        }
+
+        if (task.getEstado() != TaskStatus.COMPLETADA) {
+            throw new BusinessException("Solo se pueden verificar tareas completadas.");
+        }
+    }
+
+    private void validateVerifierIsNotAssignedUser(HouseholdTask task, User authenticatedUser) {
+        if (task.getAsignadoA() != null && task.getAsignadoA().getId().equals(authenticatedUser.getId())) {
+            throw new BusinessException("No puedes verificar una tarea completada por ti.");
+        }
+    }
+
+    private void clearTaskProgress(HouseholdTask task) {
+        task.setFechaInicio(null);
+        task.setFechaFinalizacion(null);
+        task.setVerificadoPor(null);
+        task.setFechaVerificacion(null);
+        task.setMotivoRechazoVerificacion(null);
     }
 }
 

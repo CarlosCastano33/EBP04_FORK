@@ -17,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 import com.ebp04.backend.dto.request.AssignHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.CreateHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.RejectHouseholdTaskRequest;
+import com.ebp04.backend.dto.request.RejectTaskVerificationRequest;
 import com.ebp04.backend.dto.request.UpdateHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.UpdateTaskPriorityDeadlineRequest;
 import com.ebp04.backend.dto.response.ApiResponse;
@@ -148,6 +149,55 @@ public class HouseholdTaskController {
 
         String correoAutenticado = authentication.getName();
         HouseholdTaskResponse response = householdTaskService.unassignTask(householdId, taskId, correoAutenticado);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{householdId}/tasks/{taskId}/start")
+    public ResponseEntity<HouseholdTaskResponse> startTask(
+            @PathVariable Long householdId,
+            @PathVariable Long taskId,
+            Authentication authentication) {
+
+        String correoAutenticado = authentication.getName();
+        HouseholdTaskResponse response = householdTaskService.startTask(householdId, taskId, correoAutenticado);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{householdId}/tasks/{taskId}/complete")
+    public ResponseEntity<HouseholdTaskResponse> completeTask(
+            @PathVariable Long householdId,
+            @PathVariable Long taskId,
+            Authentication authentication) {
+
+        String correoAutenticado = authentication.getName();
+        HouseholdTaskResponse response = householdTaskService.completeTask(householdId, taskId, correoAutenticado);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{householdId}/tasks/{taskId}/verify")
+    public ResponseEntity<HouseholdTaskResponse> verifyTask(
+            @PathVariable Long householdId,
+            @PathVariable Long taskId,
+            Authentication authentication) {
+
+        String correoAutenticado = authentication.getName();
+        HouseholdTaskResponse response = householdTaskService.verifyTask(householdId, taskId, correoAutenticado);
+        return ResponseEntity.ok(response);
+    }
+
+    @PatchMapping("/{householdId}/tasks/{taskId}/reject-verification")
+    public ResponseEntity<HouseholdTaskResponse> rejectTaskVerification(
+            @PathVariable Long householdId,
+            @PathVariable Long taskId,
+            @Valid @RequestBody RejectTaskVerificationRequest request,
+            Authentication authentication) {
+
+        String correoAutenticado = authentication.getName();
+        HouseholdTaskResponse response = householdTaskService.rejectTaskVerification(
+                householdId,
+                taskId,
+                request,
+                correoAutenticado);
         return ResponseEntity.ok(response);
     }
 }

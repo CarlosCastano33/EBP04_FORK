@@ -66,6 +66,19 @@ public class HouseholdTask {
     @Column(length = 500)
     private String motivoRechazo;
 
+    private LocalDateTime fechaInicio;
+
+    private LocalDateTime fechaFinalizacion;
+
+    @ManyToOne
+    @JoinColumn(name = "verificado_por")
+    private User verificadoPor;
+
+    private LocalDateTime fechaVerificacion;
+
+    @Column(length = 500)
+    private String motivoRechazoVerificacion;
+
     @Column(nullable = false)
     private LocalDateTime fechaCreacion;
 

@@ -4,5 +4,9 @@ public enum TaskStatus {
     SIN_ASIGNAR,
     ASIGNADA,
     ACEPTADA,
-    RECHAZADA
+    RECHAZADA,
+    EN_PROGRESO,
+    COMPLETADA,
+    VERIFICADA,
+    VERIFICACION_RECHAZADA
 }

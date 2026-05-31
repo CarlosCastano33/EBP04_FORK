@@ -1,6 +1,6 @@
 import { useNavigate } from 'react-router';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, User, Users, Home, Shield, ClipboardList, Inbox, CheckSquare } from 'lucide-react';
+import { LogOut, User, Users, Home, Shield, ClipboardList, Inbox, CheckSquare, LayoutList, History, BarChart3 } from 'lucide-react';
 import { Button } from '../components/Button';
 import { NotificationBell } from '../components/NotificationBell';
 
@@ -122,16 +122,34 @@ export function Dashboard() {
                     <p className="mb-1">Tareas Domésticas</p>
                     <p className="text-sm text-green-100">Crear y gestionar todas las tareas</p>
                   </button>
+
+                  <button
+                    onClick={() => navigate('/home-tasks-overview')}
+                    className="p-6 bg-gradient-to-br from-sky-500 to-sky-600 rounded-xl text-white hover:from-sky-600 hover:to-sky-700 transition-all shadow-md text-left"
+                  >
+                    <LayoutList className="w-8 h-8 mb-3" />
+                    <p className="mb-1">Estado de tareas</p>
+                    <p className="text-sm text-sky-100">Consultar avance del hogar</p>
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/reports')}
+                    className="p-6 bg-gradient-to-br from-rose-500 to-rose-600 rounded-xl text-white hover:from-rose-600 hover:to-rose-700 transition-all shadow-md text-left"
+                  >
+                    <BarChart3 className="w-8 h-8 mb-3" />
+                    <p className="mb-1">Reportes</p>
+                    <p className="text-sm text-rose-100">Consultar cumplimiento y distribucion</p>
+                  </button>
                 </>
               ) : currentUser?.role === 'Miembro' ? (
                 <>
                   <button
-                    onClick={() => navigate('/tasks')}
+                    onClick={() => navigate('/my-tasks')}
                     className="p-6 bg-gradient-to-br from-green-500 to-green-600 rounded-xl text-white hover:from-green-600 hover:to-green-700 transition-all shadow-md text-left"
                   >
                     <CheckSquare className="w-8 h-8 mb-3" />
                     <p className="mb-1">Mis Tareas</p>
-                    <p className="text-sm text-green-100">Ver tareas del hogar y asignadas</p>
+                    <p className="text-sm text-green-100">Ver tus tareas asignadas</p>
                   </button>
 
                   <button
@@ -147,16 +165,36 @@ export function Dashboard() {
                       </span>
                     )}
                   </button>
+
+                  <button
+                    onClick={() => navigate('/home-tasks-overview')}
+                    className="p-6 bg-gradient-to-br from-sky-500 to-sky-600 rounded-xl text-white hover:from-sky-600 hover:to-sky-700 transition-all shadow-md text-left"
+                  >
+                    <LayoutList className="w-8 h-8 mb-3" />
+                    <p className="mb-1">Estado del hogar</p>
+                    <p className="text-sm text-sky-100">Ver avance de tareas</p>
+                  </button>
                 </>
               ) : currentUser?.role === 'Invitado' ? (
-                <button
-                  onClick={() => navigate('/tasks')}
-                  className="p-6 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl text-white hover:from-gray-600 hover:to-gray-700 transition-all shadow-md text-left"
-                >
-                  <ClipboardList className="w-8 h-8 mb-3" />
-                  <p className="mb-1">Ver Tareas del Hogar</p>
-                  <p className="text-sm text-gray-100">Solo lectura</p>
-                </button>
+                <>
+                  <button
+                    onClick={() => navigate('/tasks')}
+                    className="p-6 bg-gradient-to-br from-gray-500 to-gray-600 rounded-xl text-white hover:from-gray-600 hover:to-gray-700 transition-all shadow-md text-left"
+                  >
+                    <ClipboardList className="w-8 h-8 mb-3" />
+                    <p className="mb-1">Ver Tareas del Hogar</p>
+                    <p className="text-sm text-gray-100">Solo lectura</p>
+                  </button>
+
+                  <button
+                    onClick={() => navigate('/home-tasks-overview')}
+                    className="p-6 bg-gradient-to-br from-sky-500 to-sky-600 rounded-xl text-white hover:from-sky-600 hover:to-sky-700 transition-all shadow-md text-left"
+                  >
+                    <History className="w-8 h-8 mb-3" />
+                    <p className="mb-1">Estado e historial</p>
+                    <p className="text-sm text-sky-100">Consultar avance</p>
+                  </button>
+                </>
               ) : null}
             </div>
           </div>

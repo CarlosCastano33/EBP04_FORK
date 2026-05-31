@@ -5,6 +5,7 @@ import java.util.List;
 import com.ebp04.backend.dto.request.AssignHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.CreateHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.RejectHouseholdTaskRequest;
+import com.ebp04.backend.dto.request.RejectTaskVerificationRequest;
 import com.ebp04.backend.dto.request.UpdateHouseholdTaskRequest;
 import com.ebp04.backend.dto.request.UpdateTaskPriorityDeadlineRequest;
 import com.ebp04.backend.dto.response.ApiResponse;
@@ -43,6 +44,18 @@ public interface HouseholdTaskService {
             String correoAutenticado);
 
     HouseholdTaskResponse unassignTask(Long householdId, Long taskId, String correoAutenticado);
+
+    HouseholdTaskResponse startTask(Long householdId, Long taskId, String correoAutenticado);
+
+    HouseholdTaskResponse completeTask(Long householdId, Long taskId, String correoAutenticado);
+
+    HouseholdTaskResponse verifyTask(Long householdId, Long taskId, String correoAutenticado);
+
+    HouseholdTaskResponse rejectTaskVerification(
+            Long householdId,
+            Long taskId,
+            RejectTaskVerificationRequest request,
+            String correoAutenticado);
 
     List<HouseholdTaskResponse> getTasks(Long householdId, String correoAutenticado);
 }

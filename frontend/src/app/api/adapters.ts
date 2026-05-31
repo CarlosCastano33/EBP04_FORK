@@ -2,8 +2,21 @@ import { Home, Task, TaskNotification, TaskPriority, TaskStatus, User, UserRole 
 
 export type BackendHouseholdRole = 'ADMIN' | 'MIEMBRO' | 'INVITADO';
 export type BackendTaskPriority = 'BAJA' | 'MEDIA' | 'ALTA';
-export type BackendTaskStatus = 'SIN_ASIGNAR' | 'ASIGNADA' | 'ACEPTADA' | 'RECHAZADA';
-export type BackendNotificationType = 'TASK_ASSIGNED' | 'TASK_ACCEPTED';
+export type BackendTaskStatus =
+  | 'SIN_ASIGNAR'
+  | 'ASIGNADA'
+  | 'ACEPTADA'
+  | 'RECHAZADA'
+  | 'EN_PROGRESO'
+  | 'COMPLETADA'
+  | 'VERIFICADA'
+  | 'VERIFICACION_RECHAZADA';
+export type BackendNotificationType =
+  | 'TASK_ASSIGNED'
+  | 'TASK_ACCEPTED'
+  | 'TASK_COMPLETED'
+  | 'TASK_VERIFIED'
+  | 'TASK_VERIFICATION_REJECTED';
 
 export interface BackendAuthResponse {
   token: string;
@@ -48,6 +61,11 @@ export interface BackendHouseholdTaskResponse {
   estado?: BackendTaskStatus | null;
   fechaAceptacion?: string | null;
   motivoRechazo?: string | null;
+  fechaInicio?: string | null;
+  fechaFinalizacion?: string | null;
+  verificadoPorId?: number | null;
+  fechaVerificacion?: string | null;
+  motivoRechazoVerificacion?: string | null;
   householdId: number;
   creadoPorId: number;
   asignadoAId?: number | null;
@@ -190,6 +208,15 @@ export function fromBackendHouseholdTask(response: BackendHouseholdTaskResponse)
     assignedTo: response.asignadoAId ? String(response.asignadoAId) : undefined,
     status: response.estado ? fromBackendTaskStatus(response.estado) : undefined,
     rejectionReason: response.motivoRechazo || undefined,
+    startedAt: response.fechaInicio ? dateTimeToTimestamp(response.fechaInicio) : undefined,
+    completedAt: response.fechaFinalizacion
+      ? dateTimeToTimestamp(response.fechaFinalizacion)
+      : undefined,
+    verifiedBy: response.verificadoPorId ? String(response.verificadoPorId) : undefined,
+    verifiedAt: response.fechaVerificacion
+      ? dateTimeToTimestamp(response.fechaVerificacion)
+      : undefined,
+    verificationRejectionReason: response.motivoRechazoVerificacion || undefined,
   };
 }
 
@@ -248,6 +275,10 @@ export function fromBackendTaskStatus(status: BackendTaskStatus): TaskStatus {
     ASIGNADA: 'pending',
     ACEPTADA: 'accepted',
     RECHAZADA: 'rejected',
+    EN_PROGRESO: 'in_progress',
+    COMPLETADA: 'completed',
+    VERIFICADA: 'verified',
+    VERIFICACION_RECHAZADA: 'verification_rejected',
   };
 
   return statuses[status];
@@ -259,6 +290,10 @@ export function toBackendTaskStatus(status: TaskStatus): BackendTaskStatus | und
     pending: 'ASIGNADA',
     accepted: 'ACEPTADA',
     rejected: 'RECHAZADA',
+    in_progress: 'EN_PROGRESO',
+    completed: 'COMPLETADA',
+    verified: 'VERIFICADA',
+    verification_rejected: 'VERIFICACION_RECHAZADA',
   };
 
   return statuses[status];

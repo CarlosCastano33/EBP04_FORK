@@ -15,6 +15,12 @@ import { RoleManagement } from './pages/RoleManagement';
 import { Tasks } from './pages/Tasks';
 import { PendingTasks } from './pages/PendingTasks';
 import { MyTasks } from './pages/MyTasks';
+import { HomeTasksOverview } from './pages/HomeTasksOverview';
+import { HomeHistoryOverview } from './pages/HomeHistoryOverview';
+import { ReportsOverview } from './pages/ReportsOverview';
+import { ComplianceReport } from './pages/ComplianceReport';
+import { UserReport } from './pages/UserReport';
+import { DistributionReport } from './pages/DistributionReport';
 
 function ProtectedRoute({ children }: { children: React.ReactNode }) {
   const { currentUser, isLoadingSession } = useAuth();
@@ -173,6 +179,54 @@ export const router = createBrowserRouter([
     element: (
       <ProtectedRoute>
         <MyTasks />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/home-tasks-overview',
+    element: (
+      <ProtectedRoute>
+        <HomeTasksOverview />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/home-history',
+    element: (
+      <ProtectedRoute>
+        <HomeHistoryOverview />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reports',
+    element: (
+      <ProtectedRoute>
+        <ReportsOverview />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reports/compliance',
+    element: (
+      <ProtectedRoute>
+        <ComplianceReport />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reports/user',
+    element: (
+      <ProtectedRoute>
+        <UserReport />
+      </ProtectedRoute>
+    ),
+  },
+  {
+    path: '/reports/distribution',
+    element: (
+      <ProtectedRoute>
+        <DistributionReport />
       </ProtectedRoute>
     ),
   },

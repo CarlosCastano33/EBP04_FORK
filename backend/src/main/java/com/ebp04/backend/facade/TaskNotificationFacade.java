@@ -27,6 +27,29 @@ public class TaskNotificationFacade {
         taskNotificationRepository.save(notification);
     }
 
+    public void notifyTaskCompleted(HouseholdTask task) {
+        TaskNotification notification = taskNotificationFactory.createTaskCompletedNotification(task);
+        taskNotificationRepository.save(notification);
+    }
+
+    public void notifyTaskVerified(HouseholdTask task) {
+        if (task.getAsignadoA() == null) {
+            return;
+        }
+
+        TaskNotification notification = taskNotificationFactory.createTaskVerifiedNotification(task);
+        taskNotificationRepository.save(notification);
+    }
+
+    public void notifyTaskVerificationRejected(HouseholdTask task) {
+        if (task.getAsignadoA() == null) {
+            return;
+        }
+
+        TaskNotification notification = taskNotificationFactory.createTaskVerificationRejectedNotification(task);
+        taskNotificationRepository.save(notification);
+    }
+
     public void deleteNotificationsForTask(Long taskId) {
         taskNotificationRepository.deleteByTaskId(taskId);
     }

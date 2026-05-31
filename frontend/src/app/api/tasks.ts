@@ -155,3 +155,52 @@ export async function unassignHouseholdTaskRequest(householdId: string, taskId: 
 
   return fromBackendHouseholdTask(response);
 }
+
+export async function startHouseholdTaskRequest(householdId: string, taskId: string) {
+  const response = await apiRequest<BackendHouseholdTaskResponse>(
+    `/api/households/${householdId}/tasks/${taskId}/start`,
+    {
+      method: 'PATCH',
+    },
+  );
+
+  return fromBackendHouseholdTask(response);
+}
+
+export async function completeHouseholdTaskRequest(householdId: string, taskId: string) {
+  const response = await apiRequest<BackendHouseholdTaskResponse>(
+    `/api/households/${householdId}/tasks/${taskId}/complete`,
+    {
+      method: 'PATCH',
+    },
+  );
+
+  return fromBackendHouseholdTask(response);
+}
+
+export async function verifyHouseholdTaskRequest(householdId: string, taskId: string) {
+  const response = await apiRequest<BackendHouseholdTaskResponse>(
+    `/api/households/${householdId}/tasks/${taskId}/verify`,
+    {
+      method: 'PATCH',
+    },
+  );
+
+  return fromBackendHouseholdTask(response);
+}
+
+export async function rejectHouseholdTaskVerificationRequest(
+  householdId: string,
+  taskId: string,
+  reason: string,
+) {
+  const response = await apiRequest<BackendHouseholdTaskResponse>(
+    `/api/households/${householdId}/tasks/${taskId}/reject-verification`,
+    {
+      method: 'PATCH',
+      body: { reason },
+    },
+  );
+
+  return fromBackendHouseholdTask(response);
+}

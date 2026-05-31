@@ -14,13 +14,17 @@ import {
 import {
   acceptHouseholdTaskRequest,
   assignHouseholdTaskRequest,
+  completeHouseholdTaskRequest,
   createConfiguredHouseholdTaskRequest,
   deleteHouseholdTaskRequest,
   getHouseholdTasksRequest,
+  rejectHouseholdTaskVerificationRequest,
   rejectHouseholdTaskRequest,
+  startHouseholdTaskRequest,
   unassignHouseholdTaskRequest,
   updateHouseholdTaskPriorityDeadlineRequest,
   updateHouseholdTaskRequest,
+  verifyHouseholdTaskRequest,
 } from '../api/tasks';
 import {
   getNotificationsRequest,
@@ -353,18 +357,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const updateTask = async (taskId: string, updates: Partial<Task>) => {
     if (!currentUser?.homeId) return;
 
+    const { priority, dueDate, name, description } = updates;
     const updatesOnlyPriorityDeadline =
-      updates.priority !== undefined &&
-      updates.dueDate !== undefined &&
-      updates.name === undefined &&
-      updates.description === undefined;
+      priority !== undefined &&
+      dueDate !== undefined &&
+      name === undefined &&
+      description === undefined;
 
     const updatedTask = updatesOnlyPriorityDeadline
       ? await updateHouseholdTaskPriorityDeadlineRequest(
           currentUser.homeId,
           taskId,
-          updates.priority,
-          updates.dueDate,
+          priority,
+          dueDate,
         )
       : await updateHouseholdTaskRequest(currentUser.homeId, taskId, updates);
 
@@ -397,6 +402,49 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     if (!currentUser?.homeId) return;
 
     const updatedTask = await rejectHouseholdTaskRequest(currentUser.homeId, taskId, reason);
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === taskId ? updatedTask : task)),
+    );
+    await refreshNotifications();
+  };
+
+  const startTask = async (taskId: string) => {
+    if (!currentUser?.homeId) return;
+
+    const updatedTask = await startHouseholdTaskRequest(currentUser.homeId, taskId);
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === taskId ? updatedTask : task)),
+    );
+  };
+
+  const completeTask = async (taskId: string) => {
+    if (!currentUser?.homeId) return;
+
+    const updatedTask = await completeHouseholdTaskRequest(currentUser.homeId, taskId);
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === taskId ? updatedTask : task)),
+    );
+    await refreshNotifications();
+  };
+
+  const verifyTask = async (taskId: string) => {
+    if (!currentUser?.homeId || !currentUser.isAdmin) return;
+
+    const updatedTask = await verifyHouseholdTaskRequest(currentUser.homeId, taskId);
+    setTasks((currentTasks) =>
+      currentTasks.map((task) => (task.id === taskId ? updatedTask : task)),
+    );
+    await refreshNotifications();
+  };
+
+  const rejectTaskVerification = async (taskId: string, reason: string) => {
+    if (!currentUser?.homeId || !currentUser.isAdmin) return;
+
+    const updatedTask = await rejectHouseholdTaskVerificationRequest(
+      currentUser.homeId,
+      taskId,
+      reason,
+    );
     setTasks((currentTasks) =>
       currentTasks.map((task) => (task.id === taskId ? updatedTask : task)),
     );
@@ -446,6 +494,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         acceptTask,
         rejectTask,
         reassignTask,
+        startTask,
+        completeTask,
+        verifyTask,
+        rejectTaskVerification,
         refreshHouseholdData,
         refreshNotifications,
         markNotificationAsRead,

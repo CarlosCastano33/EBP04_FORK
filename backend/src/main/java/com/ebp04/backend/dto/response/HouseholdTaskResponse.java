@@ -27,6 +27,11 @@ public class HouseholdTaskResponse {
     private TaskStatus estado;
     private LocalDateTime fechaAceptacion;
     private String motivoRechazo;
+    private LocalDateTime fechaInicio;
+    private LocalDateTime fechaFinalizacion;
+    private Long verificadoPorId;
+    private LocalDateTime fechaVerificacion;
+    private String motivoRechazoVerificacion;
     private Long householdId;
     private Long creadoPorId;
     private Long asignadoAId;

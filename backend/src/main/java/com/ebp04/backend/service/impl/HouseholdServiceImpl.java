@@ -228,6 +228,11 @@ public class HouseholdServiceImpl implements HouseholdService {
             task.setEstado(TaskStatus.SIN_ASIGNAR);
             task.setFechaAceptacion(null);
             task.setMotivoRechazo(null);
+            task.setFechaInicio(null);
+            task.setFechaFinalizacion(null);
+            task.setVerificadoPor(null);
+            task.setFechaVerificacion(null);
+            task.setMotivoRechazoVerificacion(null);
         });
 
         householdTaskRepository.saveAll(assignedTasks);
