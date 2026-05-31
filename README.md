@@ -1,6 +1,6 @@
 # Gestion de tareas domesticas
 
-Aplicacion web para organizar tareas dentro de hogares compartidos. El sistema permite registrar usuarios, iniciar sesion, crear hogares, agregar miembros por correo, administrar roles y gestionar tareas con prioridad, fecha limite, asignacion, aceptacion, rechazo y notificaciones.
+Aplicacion web para organizar tareas dentro de hogares compartidos. El sistema permite registrar usuarios, iniciar sesion, crear hogares, agregar miembros por correo, administrar roles y gestionar tareas con prioridad, fecha limite, asignacion, aceptacion, rechazo, inicio, finalizacion, verificacion, historial, reportes y notificaciones.
 
 El proyecto esta dividido en:
 
@@ -15,12 +15,17 @@ El proyecto esta dividido en:
 - Agregar miembros a un hogar usando el correo registrado.
 - Gestion de roles: `ADMIN`, `MIEMBRO` e `INVITADO`.
 - Creacion, edicion, asignacion y eliminacion de tareas.
-- Control de estados de tarea: sin asignar, asignada, aceptada o rechazada.
+- Control de estados de tarea: sin asignar, pendiente, aceptada, rechazada, en progreso, completada, verificada o con verificacion rechazada.
+- Inicio, finalizacion y verificacion de tareas.
+- Consulta de tareas asignadas, estado general del hogar e historial de tareas.
+- Reportes de cumplimiento, participacion por usuario y distribucion de tareas.
 - Restricciones por rol:
   - Solo administradores pueden agregar miembros, cambiar roles, asignar tareas, eliminar tareas y modificar prioridad/fecha limite.
-  - Miembros asignados pueden aceptar, rechazar o editar informacion permitida de sus tareas.
+  - Solo administradores pueden verificar o rechazar la verificacion de tareas completadas.
+  - Un administrador no puede verificar una tarea que esta asignada a si mismo.
+  - Miembros asignados pueden aceptar, rechazar, iniciar y completar sus tareas.
   - Invitados no pueden recibir tareas.
-- Notificaciones por asignacion y aceptacion de tareas.
+- Notificaciones por asignacion, aceptacion, finalizacion, verificacion y rechazo de verificacion de tareas.
 
 ## Requisitos
 
